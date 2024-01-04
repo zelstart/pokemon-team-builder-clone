@@ -1,6 +1,7 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
 import { ApolloClient, ApolloProvider, InMemoryCache, createHttpLink,  } from '@apollo/client';
+import { onError } from '@apollo/client/link/error';
 import { Container } from 'react-bootstrap';
 import { setContext } from '@apollo/client/link/context';
 
@@ -18,7 +19,7 @@ const httpLink = createHttpLink({
 const authLink = setContext((_, { headers }) => {
   // get the authentication token from local storage if it exists
   const token = localStorage.getItem('id_token');
-  console.log("App.jsx - Token: ", token);
+  // console.log("App.jsx - Token: ", token);
   // return the headers to the context so httpLink can read them
   return {
     headers: {
@@ -28,8 +29,20 @@ const authLink = setContext((_, { headers }) => {
   };
 });
 
+
+const errorLink = onError(({ graphQLErrors }) => {
+  if (graphQLErrors) {
+    graphQLErrors.map(({ message }) => {
+      if (message === 'Authentication token is invalid, please log in' || message === 'Context creation failed: Token expired!') {
+        localStorage.removeItem('id_token');
+        window.location.replace('/');
+      }
+    });
+  }
+  
+})
 const client = new ApolloClient({
-  link: authLink.concat(httpLink),
+  link: errorLink.concat(authLink).concat(httpLink),
   cache: new InMemoryCache(),
 });
 
